@@ -1,0 +1,65 @@
+---
+title: "Growth Optimization Data Challenge"
+author: "Joe Silverstein"
+date: "9/28/2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+library(data.table)
+setwd("~/Google Drive/Jobs/Uber")
+dt = fread("go_data_challenge.csv")
+dt$V1 = NULL
+dt$city_name = NULL
+```
+
+Create Variable For Driver Trip Number:
+
+```{r}
+dt = dt[order(dt$driver_id, dt$request_timestamp), ]
+dt[, trip_num := seq_len(.N), by = driver_id]
+dt[, trip_num := 1:.N, by = driver_id]
+```
+
+Aggregate Total Fares by Driver Trip Number:
+
+```{r}
+fare_tot_dt = dt[, list(fare_tot = sum(fare)), by = trip_num]
+```
+
+Graph Total Fare by Trip Number:
+
+```{r pressure, echo=FALSE}
+plot(fare_tot_dt, xlab = "Trip Number", ylab = "Total Fares ($)", main = "Trip Number vs. Total Fares", pch = '.')
+
+total_fares = sum(dt$fare)
+options(scipen=10)
+fare_percentages = fare_tot_dt$fare_tot/total_fares
+plot(fare_percentages, pch = ".") # very spread out
+```
+
+Find out how many drivers only took one trip.
+
+```{r, include=FALSE}
+dt[, trip_ct := .N, by = driver_id]
+drivers_dt = dt[unique(dt$driver_id), ]
+table(drivers_dt$trip_ct)
+```
+
+The table above shows that most drivers took very few trips during the 3 month period. Now look at what percentage of fares came from from drivers who took a given number of trips:
+
+## Now Do the Same Week-long Intervals
+
+There are an infinite number of possible week-long intervals, so I can't look at them all. Instead, take a random sample with replacement of 1000 week-long intervals (this is equivalent to drawing 1000 times from the empirical distribution of weeklong intervals). For each interval, find the trip number associated with the largest drop in total fares. Then calculate the summary statistics (mean, sd, etc.) of these trip numbers. This should give us an idea of when to reward the drivers.
+
+## Figure out How Large the Bonus Should Be
+
+The bonus should be just enough to incentivize a driver to complete the another trip.
+
+## Extensions If there is More Data:
+
+If I had data showing when people opened the app and didn't make a purchase, it would show when people decide not to take an Uber because of surge pricing. This would allow me to estimate the whole demand curve in addition to the supply curve, as in "Using Big Data to Estimate Consumer Surplus: The Case of Uber" (Cohen et. al. 2016).
